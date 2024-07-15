@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract BlockchainIdentity is Ownable {
+    struct Identity {
+        uint256 id;
+        address owner;
+        string name;
+        string identityData;
+        bool verified;
+    }
+
+    uint256 private nextIdentityId = 1;
+    mapping(uint256 => Identity) private identities;
+    mapping(address => bool) private admin;
+
+    event IdentityRegistered(uint256 indexed id, address indexed owner, string name, string identityData);
+    event IdentityVerified(uint256 indexed id);
+
+    modifier onlyAdmin() {
+        require(admin[msg.sender], "Caller is not an admin");
+        _;
+    }
+
+    constructor() {
+        admin[msg.sender] = true; // Contract creator is admin by default
+    }
+
+    function addAdmin(address _admin) external onlyOwner {
+        admin[_admin] = true;
+    }
+
+    function registerIdentity(string memory name, string memory identityData) external returns (uint256) {
+        require(bytes(name).length > 0, "Name cannot be empty");
+        require(bytes(identityData).length > 0, "Identity data cannot be empty");
+
+        identities[nextIdentityId] = Identity(nextIdentityId, msg.sender, name, identityData, false);
+        emit IdentityRegistered(nextIdentityId, msg.sender, name, identityData);
+
+        nextIdentityId++;
+        return nextIdentityId - 1; // Return the ID of the registered identity
+    }
+
+    function verifyIdentity(uint256 identityId) external onlyAdmin {
+        require(identities[identityId].id != 0, "Identity does not exist");
+        require(!identities[identityId].verified, "Identity is already verified");
+
+        identities[identityId].verified = true;
+        emit IdentityVerified(identityId);
+    }
+
+    function getIdentity(uint256 identityId) external view returns (
+        address owner,
+        string memory name,
+        string memory identityData,
+        bool verified
+    ) {
+        Identity storage identity = identities[identityId];
+        return (identity.owner, identity.name, identity.identityData, identity.verified);
+    }
+}
